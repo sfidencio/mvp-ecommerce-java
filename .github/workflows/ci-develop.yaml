@@ -11,6 +11,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Set up Git
+        run: |
+          git config --global user.name "Sebastião Fidencio"
+          git config --global user.email "sfidencio@gmail.com"
 
       - name: Validate commit message
         run: |
@@ -33,3 +37,34 @@ jobs:
             echo "Depois faça o push forçado:"
             exit 1
           fi
+      - name: Check for merge conflicts
+        run: |
+          git fetch origin develop
+          git merge-base --is-ancestor origin/develop HEAD
+          if [ $? -ne 0 ]; then
+            echo "**********************************"
+            echo "Conflitos de mesclagem detectados."
+            echo "Resolva os conflitos antes de continuar."
+            echo "**********************************"
+            exit 1
+          fi
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build and Test Maven Project
+        run: mvn clean verify
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: 12a34201cee5f0c0a3af692cccc0cc4b15d77539
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.organization=sfidencio \
+            -Dsonar.projectKey=sfidencio_mvp-ecommerce-java-backend \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.branch.name=develop \
+            -Dsonar.analysis.mode=publish
